@@ -16,7 +16,7 @@ function load_config() {
     content_type=$(awk -F "=" '/^content_type/ {print $2}' "$CONFIG_FILE" | xargs)
     username=$(awk -F "=" '/^username/ {print $2}' "$CONFIG_FILE" | xargs)
     password=$(awk -F "=" '/^password/ {print $2}' "$CONFIG_FILE" | xargs)
-
+    limit_prox=$(awk -F "=" '/^limit_shared/ {print $2}' "$CONFIG_FILE" | xargs)
     # Vérifier que les variables essentielles sont chargées
     if [[ -z "$base_url" || -z "$username" || -z "$password" ]]; then
         echo "Error: Missing required configuration parameters."
@@ -55,7 +55,7 @@ function make_action() {
 
     local action_url
     action_url=$(get_action_url "$action" "$param1" "$param2")
-
+    echo $action $param1 $param2
     if [[ -z "$action_url" ]]; then
         echo "Error: Invalid action '$action'."
         return 1
@@ -66,8 +66,11 @@ function make_action() {
     if [[ "$action" == "generate_shared" || "$action" == "delete_shared" || "$action" == "reset_data_counter" ]]; then
         full_command="curl -s -u $username:$password -X POST \"$shared_url/$action_url\" -H \"Content-Type: $content_type\""
     else
-        full_command="curl -s -u $username:$password -X GET -H \"Content-Type: $content_type\" \"$base_url/$action_url\""
+        full_command="curl -u $username:$password -X GET -H \"Content-Type: $content_type\" \"$base_url/$action_url\""
+    else if [[ "$action" == "list_shared" ]]; then
+        full_command="curl -u $username:$password \"$base_url/$action_url\""
     fi
+    echo $full_command
     response=$(eval "$full_command")
 
     if [[ $? -ne 0 ]]; then
@@ -104,12 +107,6 @@ if [[ "$1" == "help" ]]; then
     exit 0
 fi
 
-# Compte le nombre de shared par proxy
-function count_shared() {
-    # Récupération des position actives
-    
-
-}
 
 # Exécuter l'action demandée
 result=$(make_action "$@")
