@@ -36,29 +36,39 @@ function get_action_url() {
 }
 
 function replace_x_in_json() {
-    cp "/home/khara/Documents/Proxiongest/data.json" "/home/khara/Documents/Proxiongest/tmp.json"
-    local file="/home/khara/Documents/Proxiongest/tmp.json"
-    local arg1=$(search_pos)
-    local arg2=$(user_creator)
-    local arg3=$(mdp_creator)
-    local arg4=$(search_port)
-    local arg5=$(date -d "+1 month" +%s%3N)
-    if [[ $1 = "meta" ]]; then
-        arg6=$(cat /home/khara/Documents/Proxiongest/whitelist/meta)
-    elif [[ $1 = "x" ]]; then
-        arg6=$(cat /home/khara/Documents/Proxiongest/whitelist/x)
-    elif [[ $1 = "google" ]]; then
-        arg6=$(cat /home/khara/Documents/Proxiongest/whitelist/google)
+    if [[ $1 = "generate" ]]; then
+        name_tmp="tmp$(date +%s).json"
+        cp "/home/khara/Documents/Proxiongest/data.json" "/home/khara/Documents/Proxiongest/$name_tmp"
+        local file="/home/khara/Documents/Proxiongest/$name_tmp"
+        local arg1=$(search_pos)
+        local arg2=$(user_creator)
+        local arg3=$(mdp_creator)
+        local arg4=$(search_port)
+        local arg5=$(date -d "+1 month" +%s%3N)
+        if [[ $2 = "meta" ]]; then
+            arg6=$(cat /home/khara/Documents/Proxiongest/whitelist/meta)
+        elif [[ $2 = "x" ]]; then
+            arg6=$(cat /home/khara/Documents/Proxiongest/whitelist/x)
+        elif [[ $2 = "google" ]]; then
+            arg6=$(cat /home/khara/Documents/Proxionge46.101.83.106st/whitelist/google)
+        fi
+        sed -i "2s/x/${arg1}/" "$file"
+        sed -i "3s/x/${arg1}/" "$file"
+        sed -i "4s/x/${arg1}/" "$file"
+        sed -i "5s/x/${arg1}/" "$file"
+        sed -i "11s/x/${arg2}/" "$file"
+        sed -i "11s/x/${arg3}/" "$file"
+        sed -i "20s/x/${arg4}/" "$file"
+        sed -i "21s/y/${arg5}/" "$file"
+        sed -i "22s/x/${arg6}/" "$file"
+    elif [[ $1 = "delete" ]]; then
+        name_tmp="tmp$(date +%s).json"
+        cp "/home/khara/Documents/Proxiongest/delete.json" "/home/khara/Documents/Proxiongest/$name_tmp"
+        local file="/home/khara/Documents/Proxiongest/$name_tmp"
+        local arg1=$2
+
+        sed -i "1s/x/${arg1}/" "$file"
     fi
-    sed -i "2s/x/${arg1}/" "$file"
-    sed -i "3s/x/${arg1}/" "$file"
-    sed -i "4s/x/${arg1}/" "$file"
-    sed -i "5s/x/${arg1}/" "$file"
-    sed -i "11s/x/${arg2}/" "$file"
-    sed -i "11s/x/${arg3}/" "$file"
-    sed -i "20s/x/${arg4}/" "$file"
-    sed -i "21s/y/${arg5}/" "$file"
-    sed -i "22s/x/${arg6}/" "$file"
 }
 
 
@@ -128,8 +138,8 @@ function make_action() {
     local full_command
     if [[ "$action" == "generate_shared" ]]; then
         if [[ $platform != "meta" || $platform != "x" || $platform != "google" || $platform != "" ]]; then
-            replace_x_in_json $platform
-            data_raw="/home/khara/Documents/Proxiongest/tmp.json"
+            replace_x_in_json generate $platform
+            data_raw="/home/khara/Documents/Proxiongest/$name_tmp"
             full_command="curl -s -u \"$username:$password\" -X POST \"$shared_url/$action_url\" \\
                 -H \"Accept: $content_type\" \\
                 -H \"Content-Type: $content_type\" \\
@@ -138,9 +148,11 @@ function make_action() {
             exit 1
         fi
     elif [[ "$action" == "delete_shared" ]]; then
-        full_command="curl -s -u \"$username:$password\" -X GET \\
+        replace_x_in_json delete $platform
+        data_raw="/home/khara/Documents/Proxiongest/$name_tmp"
+        full_command="curl -s -u \"$username:$password\" -X POST \\
             -H \"Content-Type: $content_type\" \\
-            \"$base_url/$action_url\""
+            \"$shared_url/$action_url\" --data @$data_raw"
     elif [[ "$action" == "list_shared" ]]; then
         full_command="curl -s -u \"$username:$password\" $shared_url/$list_shared"
     else
@@ -156,9 +168,9 @@ function make_action() {
         return 1
     fi
     echo "$response"
+    echo "NAME_TMP=$name_tmp"
 }
 
-# Lecture des arguments et exécution
 if [[ "$#" -lt 1 || "$#" -gt 4 ]]; then
     echo "Error: You need between 1 to 4 arguments."
     echo "Usage: servo.sh <action> [platform] [param1] [param2]"
@@ -176,11 +188,16 @@ if [[ "$1" == "help" ]]; then
 fi
 
 
-result=$(make_action "$@")
+raw_output=$(make_action "$@")
+
+json_part=$(echo "$raw_output" | sed -n '/^NAME_TMP=/q;p')
+tmp_part=$(echo "$raw_output" | sed -n 's/^NAME_TMP=//p')
 if [[ $? -eq 0 ]]; then
-    beautyfier "$result"
-    if [[ -f "/home/khara/Documents/Proxiongest/tmp.json" ]]; then
-        rm "/home/khara/Documents/Proxiongest/tmp.json"
+    beautyfier "$json_part"
+    echo "/home/khara/Documents/Proxiongest/$tmp_part"
+    if [[ -f "/home/khara/Documents/Proxiongest/$tmp_part" ]]; then
+        echo $tmp_part
+        rm "/home/khara/Documents/Proxiongest/$tmp_part"
     fi
 else
     echo "Error: Action failed."

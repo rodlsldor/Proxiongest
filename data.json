@@ -6,7 +6,7 @@
     "numberOfPorts": 1,
     "authMethod": 2,
     "authEntry": "",
-    "sharedEnabled": true,
+    "sharedEnabled": false,
     "ipAuthenticationEntry": "",
     "userAuthenticationEntry": "x:x",
     "intervalRotation": 60,
