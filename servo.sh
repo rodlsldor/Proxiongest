@@ -1,50 +1,30 @@
 #!/bin/bash
 
 CONFIG_FILE="/home/khara/Documents/Proxiongest/servo.cfg"
-# Initialisation
+
 function load_config() {
     base_url=$(awk -F "=" '/^base_url/ {print $2}' "$CONFIG_FILE" | xargs)
     shared_url=$(awk -F "=" '/^shared_url/ {print $2}' "$CONFIG_FILE" | xargs)
     fqdn=$(awk -F "=" '/^fqdn/ {print $2}' "$CONFIG_FILE" | xargs)
     content_type=$(awk -F "=" '/^content_type/ {print $2}' "$CONFIG_FILE" | xargs)
-    username=$(awk -F "=" '/^username/ {print $2}' "$CONFIG_FILE" | xargs)
-    password=$(awk -F "=" '/^password/ {print $2}' "$CONFIG_FILE" | xargs)
     list_shared=$(awk -F "=" '/^list_shared/ {print $2}' "$CONFIG_FILE" | xargs)
-    if [[ -z "$base_url" || -z "$username" || -z "$password" ]]; then
+    if [[ -z "$base_url" || -z "$USER_PROX" || -z "$PASS_PROX" ]]; then
         echo "Error: Missing required configuration parameters."
         exit 1
     fi
 }
 
-function get_action_url() {
-    local action=$(printf '%q' "$1")
-    local param1=$(printf '%q' "$2")
-    local param2=$(printf '%q' "$3")
-
-    action_path=$(awk -F "=" -v action="$action" '/^\[actions\]/ {found=1} found && $1~action {print $2; exit}' "$CONFIG_FILE" | xargs)
-
-    if [[ -z "$action_path" ]]; then
-        echo "Error: Action '$action' not found in configuration."
-        exit 1
-    fi
-
-    action_path=${action_path//\{fqdn\}/$fqdn}
-    action_path=${action_path//\{param1\}/$param1}
-    action_path=${action_path//\{param2\}/$param2}
-
-    echo "$action_path"
-}
-
 function replace_x_in_json() {
     if [[ $1 = "generate" ]]; then
         name_tmp="tmp$(date +%s).json"
-        cp "/home/khara/Documents/Proxiongest/data.json" "/home/khara/Documents/Proxiongest/$name_tmp"
+        cp "/home/khara/Documents/Proxiongest/js/data.json" "/home/khara/Documents/Proxiongest/$name_tmp"
         local file="/home/khara/Documents/Proxiongest/$name_tmp"
         local arg1=$(search_pos)
         local arg2=$(user_creator)
         local arg3=$(mdp_creator)
         local arg4=$(search_port)
         local arg5=$(date -d "+1 month" +%s%3N)
+        local arg7=$(printf '%q' "$2")
         if [[ $2 = "meta" ]]; then
             arg6=$(cat /home/khara/Documents/Proxiongest/whitelist/meta)
         elif [[ $2 = "x" ]]; then
@@ -61,9 +41,10 @@ function replace_x_in_json() {
         sed -i "20s/x/${arg4}/" "$file"
         sed -i "21s/y/${arg5}/" "$file"
         sed -i "22s/x/${arg6}/" "$file"
+        sed -i "39s/x/${arg7}/" "$file"
     elif [[ $1 = "delete" ]]; then
         name_tmp="tmp$(date +%s).json"
-        cp "/home/khara/Documents/Proxiongest/delete.json" "/home/khara/Documents/Proxiongest/$name_tmp"
+        cp "/home/khara/Documents/Proxiongest/js/delete.json" "/home/khara/Documents/Proxiongest/$name_tmp"
         local file="/home/khara/Documents/Proxiongest/$name_tmp"
         local arg1=$2
 
@@ -73,7 +54,7 @@ function replace_x_in_json() {
 
 
 function search_pos() {
-    all_pos=$(curl -s -u \"$username:$password\" $shared_url/$list_shared | jq -j '[.data[].position] | join(" ")')
+    all_pos=$(curl -s -u \"$USER_PROX:$PASS_PROX\" $shared_url/$list_shared | jq -j '[.data[].position] | join(" ")')
     declare -A pos_count
     for pos in $all_pos; do
         ((pos_count[$pos]++))
@@ -89,7 +70,7 @@ function search_pos() {
 }
 
 function search_port() {
-    all_ports=$(curl -s -u \"$username:$password\" $shared_url/$list_shared | jq -j '[.data[].shared_port] | join(" ")')
+    all_ports=$(curl -s -u \"$USER_PROX:$PASS_PROX\" $shared_url/$list_shared | jq -j '[.data[].shared_port] | join(" ")')
     used_ports=($(echo "$all_ports" | tr ' ' '\n' | sort -n))
     local start_port=20001
     for ((port=start_port; ; port++)); do
@@ -99,18 +80,7 @@ function search_port() {
         fi
     done
 }
-
-function user_creator() {
-    local length=$((RANDOM % 5 + 8))
-    tr -dc 'a-zA-Z0-9' </dev/urandom | head -c "$length"
-}
-
-function mdp_creator() {
-    local length=$((RANDOM % 5 + 8))
-    tr -dc 'a-zA-Z0-9' </dev/urandom | head -c "$length"
-}
-
-function beautyfier() {
+''
     if echo "$1" | jq . > /dev/null 2>&1; then
         echo "$1" | jq .
     else
@@ -118,6 +88,23 @@ function beautyfier() {
     fi
 }
 
+function get_action_url() {
+    local action=$(printf '%q' "$1")
+    local param1=$(printf '%q' "$2")
+
+    action_path=$(awk -F "=" -v action="$action" '/^\[actions\]/ {found=1} found && $1~action {print $2; exit}' "$CONFIG_FILE" | xargs)
+
+    if [[ -z "$action_path" ]]; then
+        echo "Error: Action '$action' not found in configuration."
+        exit 1
+    fi
+
+    action_path=${action_path//\{fqdn\}/$fqdn}
+    action_path=${action_path//\{param1\}/$param1}
+    action_path=${action_path//\{param2\}/$param2}
+
+    echo "$action_path"
+}
 
 function make_action() {
     load_config
@@ -140,7 +127,7 @@ function make_action() {
         if [[ $platform != "meta" || $platform != "x" || $platform != "google" || $platform != "" ]]; then
             replace_x_in_json generate $platform
             data_raw="/home/khara/Documents/Proxiongest/$name_tmp"
-            full_command="curl -s -u \"$username:$password\" -X POST \"$shared_url/$action_url\" \\
+            full_command="curl -s -u \"$USER_PROX:$PASS_PROX\" -X POST \"$shared_url/$action_url\" \\
                 -H \"Accept: $content_type\" \\
                 -H \"Content-Type: $content_type\" \\
                 --data @$data_raw"
@@ -150,13 +137,13 @@ function make_action() {
     elif [[ "$action" == "delete_shared" ]]; then
         replace_x_in_json delete $platform
         data_raw="/home/khara/Documents/Proxiongest/$name_tmp"
-        full_command="curl -s -u \"$username:$password\" -X POST \\
+        full_command="curl -s -u \"$USER_PROX:$PASS_PROX\" -X POST \\
             -H \"Content-Type: $content_type\" \\
             \"$shared_url/$action_url\" --data @$data_raw"
     elif [[ "$action" == "list_shared" ]]; then
-        full_command="curl -s -u \"$username:$password\" $shared_url/$list_shared"
+        full_command="curl -s -u \"$USER_PROX:$PASS_PROX\" $shared_url/$list_shared"
     else
-        full_command="curl -s -u \"$username:$password\" -X GET \\
+        full_command="curl -s -u \"$USER_PROX:$PASS_PROX\" -X GET \\
             -H \"Content-Type: $content_type\" \\
             \"$base_url/$action_url\""
     fi
@@ -194,10 +181,8 @@ json_part=$(echo "$raw_output" | sed -n '/^NAME_TMP=/q;p')
 tmp_part=$(echo "$raw_output" | sed -n 's/^NAME_TMP=//p')
 if [[ $? -eq 0 ]]; then
     beautyfier "$json_part"
-    echo "/home/khara/Documents/Proxiongest/$tmp_part"
     if [[ -f "/home/khara/Documents/Proxiongest/$tmp_part" ]]; then
-        echo $tmp_part
-        rm "/home/khara/Documents/Proxiongest/$tmp_part"
+        echo "/home/khara/Documents/Proxiongest/$tmp_part"
     fi
 else
     echo "Error: Action failed."
