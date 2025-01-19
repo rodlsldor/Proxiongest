@@ -12,7 +12,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         param2 = query.get("param2", [""])[0]
 
         print("Query is : "+query+"\nAction is : "+action+"\nPlatform is : "+"\nParam 1 is : "+param1+"\nParam 2 is : "+param2)
-        
+
         # try:
         #     result = subprocess.run(
         #         ["/chemin/vers/servo.sh", action, platform, param1, param2],
@@ -29,6 +29,6 @@ class RequestHandler(BaseHTTPRequestHandler):
         #     self.wfile.write(e.stderr.encode())
 
 # Configurer le serveur
-server = HTTPServer(('0.0.0.0', 5678), RequestHandler)
-print("Serveur en écoute sur le port 5678...")
+server = HTTPServer(('0.0.0.0', 5687), RequestHandler)
+print("Serveur en écoute sur le port 5687...")
 server.serve_forever()

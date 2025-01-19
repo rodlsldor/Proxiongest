@@ -26,7 +26,7 @@ function replace_x_in_json() {
             echo "Error: Failed to create temporary file." >&2
             exit 1
         fi
-        cp "/home/khara/Documents/Proxiongest/js/data.json" "$name_tmp"
+        cp "$HOME/Documents/Proxiongest/js/data.json" "$name_tmp"
         local file="$name_tmp"
         local arg1=$(search_pos)
         local arg2=$(user_creator)
@@ -59,7 +59,7 @@ function replace_x_in_json() {
             echo "Error: Failed to create temporary file." >&2
             exit 1
         fi
-        cp "/home/khara/Documents/Proxiongest/js/delete.json" "$name_tmp"
+        cp "$HOME/Documents/Proxiongest/js/delete.json" "$name_tmp"
         local file="$name_tmp"
         local arg1=$2
 
@@ -284,9 +284,6 @@ json_part=$(echo "$raw_output" | sed -n '/^NAME_TMP=/q;p')
 tmp_part=$(echo "$raw_output" | sed -n 's/^NAME_TMP=//p')
 if [[ $? -eq 0 ]]; then
     beautyfier "$json_part"
-    if [[ -f "/home/khara/Documents/Proxiongest/$tmp_part" ]]; then
-        rm "/home/khara/Documents/Proxiongest/$tmp_part"
-    fi
 else
     echo "Error: Action failed."
     exit 1
