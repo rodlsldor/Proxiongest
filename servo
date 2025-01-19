@@ -26,7 +26,7 @@ function replace_x_in_json() {
             echo "Error: Failed to create temporary file." >&2
             exit 1
         fi
-        cp "$HOME/Documents/Proxiongest/js/data.json" "$name_tmp"
+        cp "$HOME/Proxiongest/js/data.json" "$name_tmp"
         local file="$name_tmp"
         local arg1=$(search_pos)
         local arg2=$(user_creator)
@@ -34,13 +34,13 @@ function replace_x_in_json() {
         local arg4=$(search_port)
         local arg5=$(date -d "+1 month" +%s%3N)
         if [[ $2 = "meta" ]]; then
-            local arg6=$(cat $HOME/Documents/Proxiongest/whitelist/meta)
+            local arg6=$(cat $HOME/Proxiongest/whitelist/meta)
             local arg7=$(printf '%q' "$3")
         elif [[ $2 = "x" ]]; then
-            local arg6=$(cat $HOME/Documents/Proxiongest/whitelist/x)
+            local arg6=$(cat $HOME/Proxiongest/whitelist/x)
             local arg7=$(printf '%q' "$3")
         elif [[ $2 = "google" ]]; then
-            local arg6=$(cat $HOME/Documents/Proxiongest/whitelist/google)
+            local arg6=$(cat $HOME/Proxiongest/whitelist/google)
             local arg7=$(printf '%q' "$3")
         fi
         sed -i "2s/x/${arg1}/" "$file"
@@ -59,7 +59,7 @@ function replace_x_in_json() {
             echo "Error: Failed to create temporary file." >&2
             exit 1
         fi
-        cp "$HOME/Documents/Proxiongest/js/delete.json" "$name_tmp"
+        cp "$HOME/Proxiongest/js/delete.json" "$name_tmp"
         local file="$name_tmp"
         local arg1=$2
 
