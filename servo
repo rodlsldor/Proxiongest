@@ -1,0 +1,258 @@
+#!/bin/bash
+
+function load_config() {
+    if [[ -z "$BASE_URL" || -z "$USER_PROX" || -z "$PASS_PROX" ]]; then
+        echo "Error: Missing required configuration parameters."
+        exit 1
+    fi
+}
+
+function replace_x_in_json() {
+    if [[ $1 = "generate" ]]; then
+        name_tmp="tmp$(date +%s).json"
+        cp "/home/khara/Documents/Proxiongest/js/data.json" "/home/khara/Documents/Proxiongest/$name_tmp"
+        local file="/home/khara/Documents/Proxiongest/$name_tmp"
+        local arg1=$(search_pos)
+        local arg2=$(user_creator)
+        local arg3=$(mdp_creator)
+        local arg4=$(search_port)
+        local arg5=$(date -d "+1 month" +%s%3N)
+        if [[ $2 = "meta" ]]; then
+            local arg6=$(cat /home/khara/Documents/Proxiongest/whitelist/meta)
+            local arg7=$(printf '%q' "$3")
+        elif [[ $2 = "x" ]]; then
+            local arg6=$(cat /home/khara/Documents/Proxiongest/whitelist/x)
+            local arg7=$(printf '%q' "$3")
+        elif [[ $2 = "google" ]]; then
+            local arg6=$(cat /home/khara/Documents/Proxionge46.101.83.106st/whitelist/google)
+            local arg7=$(printf '%q' "$3")
+        fi
+        sed -i "2s/x/${arg1}/" "$file"
+        sed -i "3s/x/${arg1}/" "$file"
+        sed -i "4s/x/${arg1}/" "$file"
+        sed -i "5s/x/${arg1}/" "$file"
+        sed -i "11s/x/${arg2}/" "$file"
+        sed -i "11s/x/${arg3}/" "$file"
+        sed -i "20s/x/${arg4}/" "$file"
+        sed -i "21s/y/${arg5}/" "$file"
+        sed -i "22s/x/${arg6}/" "$file"
+        sed -i "39s/x/${arg7}/" "$file"
+    elif [[ $1 = "delete" ]]; then
+        name_tmp="tmp$(date +%s).json"
+        cp "/home/khara/Documents/Proxiongest/js/delete.json" "/home/khara/Documents/Proxiongest/$name_tmp"
+        local file="/home/khara/Documents/Proxiongest/$name_tmp"
+        local arg1=$2
+
+        sed -i "1s/x/${arg1}/" "$file"
+    fi
+}
+
+
+function search_pos() {
+    all_pos=$(curl -s -u \"$USER_PROX:$PASS_PROX\" $SHARED_URL/$LIST_SHARED | jq -j '[.data[].position] | join(" ")')
+    declare -A pos_count
+    for pos in $all_pos; do
+        ((pos_count[$pos]++))
+    done
+    for pos in "${!pos_count[@]}"; do
+        if [[ ${pos_count[$pos]} -lt 3 ]]; then
+            echo "$pos"
+            return
+        fi
+    done
+    max_pos=$(echo "${!pos_count[@]}" | tr ' ' '\n' | sort -n | tail -1)
+    echo $((max_pos + 1))
+}
+
+function search_port() {
+    all_ports=$(curl -s -u \"$USER_PROX:$PASS_PROX\" $SHARED_URL/$LIST_SHARED | jq -j '[.data[].shared_port] | join(" ")')
+    used_ports=($(echo "$all_ports" | tr ' ' '\n' | sort -n))
+    local start_port=20001
+    for ((port=start_port; ; port++)); do
+        if ! [[ " ${used_ports[*]} " =~ " $port " ]]; then
+            echo "$port"
+            return
+        fi
+    done
+}
+
+function user_creator() {
+    local length=$((RANDOM % 5 + 8))
+    tr -dc 'a-zA-Z0-9' </dev/urandom | head -c "$length"
+}
+
+function mdp_creator() {
+    local length=$((RANDOM % 5 + 8))
+    tr -dc 'a-zA-Z0-9' </dev/urandom | head -c "$length"
+}
+
+function get_action_url() {
+    local action=$(printf '%q' "$1")
+    local param1=$(printf '%q' "$2")
+
+    # Récupérer l'URL de l'action via les variables d'environnement
+    local action_path
+    case "$action" in
+        list_all)
+            action_path=$ACTION_LIST_ALL
+            ;;
+        rotation_ip_proxy)
+            action_path=$ACTION_ROTATION_IP_PROXY
+            ;;
+        rotation_ip_position)
+            action_path=$ACTION_ROTATION_IP_POSITION
+            ;;
+        status_proxy)
+            action_path=$ACTION_STATUS_PROXY
+            ;;
+        status_position)
+            action_path=$ACTION_STATUS_POSITION
+            ;;
+        reboot_proxy)
+            action_path=$ACTION_REBOOT_PROXY
+            ;;
+        reboot_position)
+            action_path=$ACTION_REBOOT_POSITION
+            ;;
+        list_shared)
+            action_path=$ACTION_LIST_SHARED
+            ;;
+        generate_shared)
+            action_path=$ACTION_GENERATE_SHARED
+            ;;
+        delete_shared)
+            action_path=$ACTION_DELETE_SHARED
+            ;;
+        *)
+            echo "Error: Action '$action' not found in environment variables."
+            exit 1
+            ;;
+    esac
+
+    # Remplacer les placeholders {fqdn} et {param1} par leurs valeurs
+    action_path=${action_path//\{fqdn\}/$FQDN}
+    action_path=${action_path//\{param1\}/$param1}
+
+    echo "$action_path"
+}
+
+
+function make_action() {
+    load_config
+
+    local action=$(printf '%q' "$1")
+    local platform=$(printf '%q' "$2")
+    local param1=$(printf '%q' "$3")
+    local param2=$(printf '%q' "$4")
+
+    local action_url
+    action_url=$(get_action_url "$action" "$param1" "$param2")
+
+    if [[ -z "$action_url" ]]; then
+        echo "Error: Invalid action '$action'."
+        return 1
+    fi
+
+    local full_command
+    if [[ "$action" == "generate_shared" ]]; then
+        if [[ $platform != "meta" || $platform != "x" || $platform != "google" || $platform != "" ]]; then
+            replace_x_in_json generate $platform
+            data_raw="/home/khara/Documents/Proxiongest/$name_tmp"
+            full_command="curl -s -u \"$USER_PROX:$PASS_PROX\" -X POST \"$SHARED_URL/$action_url\" \\
+                -H \"Accept: $CONTENT_TYPE\" \\
+                -H \"Content-Type: $CONTENT_TYPE\" \\
+                --data @$data_raw"
+        else
+            exit 1
+        fi
+    elif [[ "$action" == "delete_shared" ]]; then
+        replace_x_in_json delete $platform
+        data_raw="/home/khara/Documents/Proxiongest/$name_tmp"
+        full_command="curl -s -u \"$USER_PROX:$PASS_PROX\" -X POST \\
+            -H \"Content-Type: $CONTENT_TYPE\" \\
+            \"$SHARED_URL/$action_url\" --data @$data_raw"
+    elif [[ "$action" == "list_shared" ]]; then
+        full_command="curl -s -u \"$USER_PROX:$PASS_PROX\" $SHARED_URL/$LIST_SHARED"
+    else
+        full_command="curl -s -u \"$USER_PROX:$PASS_PROX\" -X GET \\
+            -H \"Content-Type: $CONTENT_TYPE\" \\
+            \"$BASE_URL/$action_url\""
+    fi
+
+    response=$(eval "$full_command")
+
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to execute request."
+        return 1
+    fi
+    echo "$response"
+    echo "NAME_TMP=$name_tmp"
+}
+
+if [[ "$#" -lt 1 || "$#" -gt 4 ]]; then
+    echo "Error: You need between 1 to 4 arguments."
+    echo "Usage: servo.sh <action> [platform] [param1] [param2]"
+    echo "Type './servo.sh help' for more details."
+    exit 1
+fi
+
+if [[ "$1" == "help" ]]; then
+    echo "Usage: servo.sh <action> [platform] [param1] [param2]"
+    echo
+    echo "Description:"
+    echo "  This script manages proxy-related tasks, such as generating, deleting, or listing shared proxies."
+    echo "  Actions can be performed by providing the appropriate parameters."
+    echo
+    echo "Available actions:"
+    echo
+    echo "  list_all              - List all available proxies and their details."
+    echo "  rotation_ip_proxy     - Rotate the IP of a specific proxy. Requires <param1> (proxy ID)."
+    echo "  rotation_ip_position  - Rotate the IP of a specific position. Requires <param1> (position ID)."
+    echo "  status_proxy          - Get the status of a specific proxy. Requires <param1> (proxy ID)."
+    echo "  status_position       - Get the status of a specific position. Requires <param1> (position ID)."
+    echo "  reboot_proxy          - Reboot a specific proxy. Requires <param1> (proxy ID)."
+    echo "  reboot_position       - Reboot a specific position. Requires <param1> (position ID)."
+    echo "  list_shared           - List all shared proxies."
+    echo "  generate_shared       - Generate a new shared proxy. Requires [platform] (meta, x, google)."
+    echo "  delete_shared         - Delete a shared proxy. Requires <param1> (shared proxy ID)."
+    echo
+    echo "Parameters:"
+    echo "  platform              - The platform to target (meta, x, google)."
+    echo "  param1                - The ID of the proxy, position, or shared proxy, depending on the action."
+    echo "  param2                - An additional parameter (optional, depends on the action)."
+    echo
+    echo "Examples:"
+    echo "  ./servo.sh list_all"
+    echo "  ./servo.sh rotation_ip_proxy 12345"
+    echo "  ./servo.sh generate_shared meta memo"
+    echo "  ./servo.sh delete_shared 67890"
+    echo
+    echo "Notes:"
+    echo "  - Ensure all required environment variables (BASE_URL, USER_PROX, PASS_PROX) are set before running."
+    echo "  - Use './servo.sh help' to view this guide."
+    echo
+    exit 0
+fi
+
+
+function beautyfier(){
+    if echo "$1" | jq . > /dev/null 2>&1; then
+        echo "$1" | jq .
+    else
+        echo "$1"
+    fi
+}
+
+raw_output=$(make_action "$@")
+
+json_part=$(echo "$raw_output" | sed -n '/^NAME_TMP=/q;p')
+tmp_part=$(echo "$raw_output" | sed -n 's/^NAME_TMP=//p')
+if [[ $? -eq 0 ]]; then
+    beautyfier "$json_part"
+    if [[ -f "/home/khara/Documents/Proxiongest/$tmp_part" ]]; then
+        rm "/home/khara/Documents/Proxiongest/$tmp_part"
+    fi
+else
+    echo "Error: Action failed."
+    exit 1
+fi
