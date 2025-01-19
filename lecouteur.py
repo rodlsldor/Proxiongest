@@ -11,21 +11,22 @@ class RequestHandler(BaseHTTPRequestHandler):
         param1 = query.get("param1", [""])[0]
         param2 = query.get("param2", [""])[0]
 
-        # Appelle le script Bash avec les paramètres
-        try:
-            result = subprocess.run(
-                ["/chemin/vers/servo.sh", action, platform, param1, param2],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(result.stdout.encode())
-        except subprocess.CalledProcessError as e:
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(e.stderr.encode())
+        print("Query is : "+query+"\nAction is : "+action+"\nPlatform is : "+"\nParam 1 is : "+param1+"\nParam 2 is : "+param2)
+        
+        # try:
+        #     result = subprocess.run(
+        #         ["/chemin/vers/servo.sh", action, platform, param1, param2],
+        #         capture_output=True,
+        #         text=True,
+        #         check=True
+        #     )
+        #     self.send_response(200)
+        #     self.end_headers()
+        #     self.wfile.write(result.stdout.encode())
+        # except subprocess.CalledProcessError as e:
+        #     self.send_response(500)
+        #     self.end_headers()
+        #     self.wfile.write(e.stderr.encode())
 
 # Configurer le serveur
 server = HTTPServer(('0.0.0.0', 5678), RequestHandler)
